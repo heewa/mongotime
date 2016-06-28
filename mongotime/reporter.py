@@ -10,6 +10,18 @@ class Reporter(object):
     def __init__(self, samples):
         self._samples = samples
 
+        self._feature_extractors = {
+            # Passthrough
+            'ns': lambda op: op.get('ns'),
+            'client': lambda op: op.get('client'),
+            'op': lambda op: op.get('op'),
+
+            'db': lambda op: op.get('ns', '').split('.', 1)[0],
+            'collection': lambda op: '.' in op.get('ns', '') and op['ns'].split('.', 1)[1],
+
+            'client_host': lambda op: ':' in op.get('client', '') and op['client'].split(':', 1)[0],
+        }
+
     def stats(self):
         echo('== Stats ==')
         for stat, val in sorted(self._samples.stats().items()):
@@ -24,7 +36,7 @@ class Reporter(object):
             lambda: defaultdict(lambda: [0]*len(samples)))
         for sample in samples:
             for op in sample['o']:
-                for feature, value in op.items():
+                for feature, value in self._extract_features(op).items():
                     index = index_by_ts[sample['t']]
                     feature_series[feature][str(value)][index] = 1
 
@@ -55,3 +67,14 @@ class Reporter(object):
                 echo('  %s: %s' % (value, styled_perc))
 
             echo()
+
+    def _extract_features(self, op):
+        features = {}
+
+        for name, extractor in self._feature_extractors.items():
+            value = extractor(op)
+            value = value and value.strip()
+            if value:
+                features[name] = value
+
+        return features
