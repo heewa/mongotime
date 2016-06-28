@@ -21,13 +21,14 @@ class DumpedSamples(Samples):
             return {'num': 0}
 
         stats = {
-            'num': len(self._samples),
+            'num_samples': len(self._samples),
+            'num_ops': sum(len(s['o']) for s in self._samples),
             'earliest': self._samples[0]['t'],
             'latest': self._samples[-1]['t'],
         }
 
         span = stats['latest'] - stats['earliest']
-        stats['samples_per_sec'] = stats['num'] / span
+        stats['samples_per_sec'] = stats['num_samples'] / span
 
         return stats
 
