@@ -75,8 +75,8 @@ class Sampler(Thread):
             )
             for op in result['inprog']
             if not (
-                op['client'] == self._client_id and
-                op['ns'] == 'admin.$cmd')
+                op.get('client') == self._client_id and
+                op.get('ns') == 'admin.$cmd')
         ]
 
         return {'t': timestamp, 'o': ops}
