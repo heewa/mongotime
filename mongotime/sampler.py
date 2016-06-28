@@ -21,6 +21,7 @@ class Sampler(Thread):
         self._db = db
         self._sample_queue = sample_queue
         self._interval_sec = interval_sec
+        self._client_id = None
         self._stop = Event()
         self._stop.set()
 
@@ -38,6 +39,9 @@ class Sampler(Thread):
             self._stop.clear()
 
     def _run_loop(self):
+        # Get our client ID so we can exclude our own sampling Ops
+        self._client_id = self._db.admin.command('whatsmyuri')['you']
+
         while not self._stop.is_set():
             tick_start = time()
 
@@ -61,7 +65,8 @@ class Sampler(Thread):
         result = self._db.admin.current_op()
         timestamp = time()
 
-        # Filter for keys we're interested in, and remove empty ones
+        # Filter for keys we're interested in, and remove empty ones. Also
+        # remove our own Ops
         ops = [
             dict(
                 (key, value)
@@ -69,6 +74,9 @@ class Sampler(Thread):
                 if value and key in OP_KEYS
             )
             for op in result['inprog']
+            if not (
+                op['client'] == self._client_id and
+                op['ns'] == 'admin.$cmd')
         ]
 
         return {'t': timestamp, 'o': ops}
