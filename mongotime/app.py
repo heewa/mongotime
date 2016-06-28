@@ -30,9 +30,10 @@ def cli(ctx, db):
 
 @cli.command()
 @click.option('--interval', '-i', default=100, help='Sampling interval in ms')
+@click.option('--duration', '-d', default=3, help='Duration in sec to sample')
 @click.argument('dumpfile', type=click.File('wb'))
 @click.pass_context
-def dump(ctx, dumpfile, interval):
+def dump(ctx, dumpfile, interval, duration):
     sample_queue = Queue(maxsize=100)
 
     sampler = Sampler(
@@ -46,7 +47,7 @@ def dump(ctx, dumpfile, interval):
 
     try:
         echo('Sampling Mongo...')
-        sleep(3)
+        sleep(duration)
     except KeyboardInterrupt:
         echo()
         echo(style('Stopping', fg='red'))
