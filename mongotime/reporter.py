@@ -7,8 +7,9 @@ class Reporter(object):
     """Analyses samples and builds reports.
     """
 
-    def __init__(self, samples):
+    def __init__(self, samples, query=None):
         self._samples = samples
+        self._query = query
 
         self._feature_extractors = {
             # Passthrough
@@ -17,9 +18,9 @@ class Reporter(object):
             'op': lambda op: op.get('op'),
 
             'db': lambda op: op.get('ns', '').split('.', 1)[0],
-            'collection': lambda op: '.' in op.get('ns', '') and op['ns'].split('.', 1)[1],
+            'collection': lambda op: op.get('ns', '.').split('.', 1)[1],
 
-            'client_host': lambda op: ':' in op.get('client', '') and op['client'].split(':', 1)[0],
+            'client_host': lambda op: op.get('client', ':').split(':', 1)[0],
         }
 
     def stats(self):
@@ -30,15 +31,51 @@ class Reporter(object):
     def top(self):
         samples = self._samples.select_latest()
 
+        # Extract features for each op
+        feature_samples = [
+            {
+                't': sample['t'],
+                'f': [
+                    self._extract_features(op)
+                    for op in sample['o']
+                ]
+            }
+            for sample in samples
+        ]
+
+        # Filter by query
+        if self._query:
+            feature_samples = [
+                {
+                    't': sample['t'],
+                    'f': [
+                        f for f in sample['f']
+                        if eval(self._query, dict(f))
+                    ],
+                }
+                for sample in feature_samples
+            ]
+
+        # Flatten features in each sample
+        flat_samples = [
+            {
+                't': sample['t'],
+                'f': dict(reduce(
+                    lambda a, b: a | set(b.items()),
+                    sample['f'],
+                    set())),
+            }
+            for sample in feature_samples
+        ]
+
         # pivot features/time to feaures->times
         index_by_ts = {s['t']: i for i, s in enumerate(samples)}
         feature_series = defaultdict(
             lambda: defaultdict(lambda: [0]*len(samples)))
-        for sample in samples:
-            for op in sample['o']:
-                for feature, value in self._extract_features(op).items():
-                    index = index_by_ts[sample['t']]
-                    feature_series[feature][str(value)][index] = 1
+        for sample in flat_samples:
+            for feature, value in sample['f'].items():
+                index = index_by_ts[sample['t']]
+                feature_series[feature][value][index] = 1
 
         # turn into % time spent
         feature_times = {
@@ -69,12 +106,7 @@ class Reporter(object):
             echo()
 
     def _extract_features(self, op):
-        features = {}
-
-        for name, extractor in self._feature_extractors.items():
-            value = extractor(op)
-            value = value and value.strip()
-            if value:
-                features[name] = value
-
-        return features
+        return {
+            name: extractor(op)
+            for name, extractor in self._feature_extractors.items()
+        }

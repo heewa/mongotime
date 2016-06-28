@@ -65,6 +65,7 @@ def serve():
 
 @cli.group()
 @click.option('--short/--long', default=True)
+@click.option('--query')
 @click.pass_context
 def report(ctx, **kwargs):
     ctx.obj['flags'] = kwargs
@@ -89,8 +90,8 @@ def report_server(ctx, server):
     run_report(ServedSamples(host, port), **ctx.obj['flags'])
 
 
-def run_report(samples, short=None):
-    reporter = Reporter(samples)
+def run_report(samples, short=None, query=None):
+    reporter = Reporter(samples, query=query)
     reporter.stats()
     echo()
     reporter.top()
