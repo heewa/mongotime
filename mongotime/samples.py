@@ -32,6 +32,12 @@ class DumpedSamples(Samples):
 
         return stats
 
+    def select_latest(self, dur=None):
+        if dur:
+            raise NotImplementedError
+
+        return self._samples
+
 
 class ServedSamples(Samples):
     def __init__(self, host, port):

@@ -92,3 +92,5 @@ def report_server(ctx, server):
 def run_report(samples, short=None):
     reporter = Reporter(samples)
     reporter.stats()
+    echo()
+    reporter.top()
