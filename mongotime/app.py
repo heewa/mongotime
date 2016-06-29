@@ -64,30 +64,29 @@ def serve():
 
 
 @cli.group()
-@click.option('--short/--long', default=True)
-@click.option('--query')
-@click.pass_context
-def report(ctx, **kwargs):
-    ctx.obj['flags'] = kwargs
+def report():
+    pass
 
 
 @report.command('dump')
 @click.argument('dumpfile', type=click.File('rb'))
-@click.pass_context
-def report_dump(ctx, dumpfile):
-    run_report(DumpedSamples(dumpfile), **ctx.obj['flags'])
+@click.option('--short/--long', default=True)
+@click.option('--query')
+def report_dump(dumpfile, **kwargs):
+    run_report(DumpedSamples(dumpfile), **kwargs)
 
 
 @report.command('server')
 @click.argument('server', default='localhost:%d' % DEFAULT_PORT)
-@click.pass_context
-def report_server(ctx, server):
+@click.option('--short/--long', default=True)
+@click.option('--query')
+def report_server(server, **kwargs):
     if ':' in server:
         host, port = server.rsplit(':', 1)
         port = int(port)
     else:
         host, port = server, DEFAULT_PORT
-    run_report(ServedSamples(host, port), **ctx.obj['flags'])
+    run_report(ServedSamples(host, port), **kwargs)
 
 
 def run_report(samples, short=None, query=None):
