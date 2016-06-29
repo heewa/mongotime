@@ -45,16 +45,20 @@ class Reporter(object):
 
         # Filter by query
         if self._query:
-            feature_samples = [
-                {
-                    't': sample['t'],
-                    'f': [
-                        f for f in sample['f']
-                        if eval(self._query, dict(f))
-                    ],
-                }
-                for sample in feature_samples
-            ]
+            try:
+                feature_samples = [
+                    {
+                        't': s['t'],
+                        'f': [
+                            op_features
+                            for op_features in s['f']
+                            if matches_query(op_features, self._query)
+                        ],
+                    }
+                    for s in feature_samples
+                ]
+            except QueryError:
+                return
 
         # Flatten features in each sample
         flat_samples = [
@@ -110,3 +114,17 @@ class Reporter(object):
             name: extractor(op)
             for name, extractor in self._feature_extractors.items()
         }
+
+
+class QueryError(Exception):
+    pass
+
+
+def matches_query(op_features, query):
+    try:
+        return eval(query, dict(op_features))
+    except Exception as err:
+        echo('Error (%s) running query on Op: %s' % (
+            style(str(err), fg='red'),
+            style(str(op_features), fg='blue')))
+        raise QueryError(str(err))
