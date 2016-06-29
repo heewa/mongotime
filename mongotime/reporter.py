@@ -13,9 +13,10 @@ class Reporter(object):
 
         self._feature_extractors = {
             # Passthrough
-            'ns': lambda op: op.get('ns'),
-            'client': lambda op: op.get('client'),
-            'op': lambda op: op.get('op'),
+            'ns': lambda op: op.get('ns') or '',
+            'client': lambda op: op.get('client') or '',
+            'op': lambda op: op.get('op') or '',
+            'query': extract_query,
 
             'db': lambda op: op.get('ns', '').split('.', 1)[0],
             'collection': lambda op: op.get('ns', '.').split('.', 1)[1],
@@ -114,6 +115,32 @@ class Reporter(object):
             name: extractor(op)
             for name, extractor in self._feature_extractors.items()
         }
+
+
+def extract_query(op):
+    """Extract a hashable value representing the query, with an attempt
+    at removing the particular values for keys in the query
+    """
+    return repr(strip_values(op.get('query')))
+
+
+KEYS_TO_NOT_STRIP = {
+    '$or', '$and', '$not', '$nor',
+    '$exists', '$type',
+    '$mod', '$regex', '$where',
+    '$msg',
+}
+
+
+def strip_values(data):
+    if isinstance(data, dict):
+        return [
+            {key: strip_values(value)} if key in KEYS_TO_NOT_STRIP else key
+            for key, value in data.items()
+        ]
+    elif isinstance(data, list):
+        return [strip_values(item) for item in data]
+    return data
 
 
 class QueryError(Exception):
