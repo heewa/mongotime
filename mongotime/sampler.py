@@ -25,6 +25,10 @@ class Sampler(Thread):
         self._stop = Event()
         self._stop.set()
 
+        # Some stats
+        self.num_samples = 0
+        self.num_ops = 0
+
     def stop(self):
         if self._stop.is_set():
             raise RuntimeError('Sampler is already stopped')
@@ -46,6 +50,8 @@ class Sampler(Thread):
             tick_start = time()
 
             sample = self._take_sample()
+            self.num_samples += 1
+            self.num_ops += len(sample['o'])
 
             try:
                 self._sample_queue.put(sample, block=False)

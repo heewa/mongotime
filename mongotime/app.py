@@ -1,6 +1,6 @@
 from __future__ import absolute_import
 
-from time import sleep
+from time import sleep, time
 from Queue import Queue
 
 import click
@@ -30,7 +30,7 @@ def cli(ctx, db):
 
 @cli.command()
 @click.option('--interval', '-i', default=100, help='Sampling interval in ms')
-@click.option('--duration', '-d', default=3, help='Duration in sec to sample')
+@click.option('--duration', '-d', default=0, help='Duration in sec to sample')
 @click.argument('dumpfile', type=click.File('wb'))
 @click.pass_context
 def dump(ctx, dumpfile, interval, duration):
@@ -45,9 +45,18 @@ def dump(ctx, dumpfile, interval, duration):
     dumper = Dumper(sample_queue, dumpfile)
     dumper.start()
 
+    start = time()
+    end = duration and start + duration
+
     try:
         echo('Sampling Mongo...')
-        sleep(duration)
+
+        left = end - time()
+        while not duration or left > 0:
+            sleep(duration and min(left, 3) or 3)
+            echo('  %6d samples  %6d ops' % (
+                sampler.num_samples, sampler.num_ops))
+            left = end - time()
     except KeyboardInterrupt:
         echo()
         echo(style('Stopping', fg='red'))
