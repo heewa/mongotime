@@ -99,7 +99,7 @@ class Reporter(object):
         return grouping_series
 
     @staticmethod
-    def print_top(grouping_series):
+    def print_top(grouping_series, num_top=None):
         # turn into % time spent
         grouping_times = {
             grouping: {
@@ -110,10 +110,17 @@ class Reporter(object):
         }
 
         for grouping, value_percs in sorted(grouping_times.items()):
-            echo('%s:' % style(grouping, fg='blue'))
+            msg = '%s:' % style(grouping, fg='blue')
+            if num_top and len(value_percs) > num_top:
+                msg = '%s (top %d of %d)' % (msg, num_top, len(value_percs))
+            echo(msg)
 
             top_values = sorted(
-                value_percs.items(), key=lambda(v, p): p, reverse=True)[:5]
+                value_percs.items(), key=lambda(v, p): p, reverse=True)
+
+            if num_top:
+                top_values = top_values[:num_top]
+
             for value, perc in top_values:
                 perc_str = '%.2f%%' % perc
                 if perc >= 80:
