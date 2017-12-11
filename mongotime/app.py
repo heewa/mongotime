@@ -7,11 +7,11 @@ import click
 from click import echo, style
 
 from pymongo import MongoClient
+from bson import decode_file_iter
 
 from .sampler import Sampler
 from .dumper import Dumper
 from .reporter import Reporter
-from .samples import DumpedSamples
 
 
 DEFAULT_PORT = 2846
@@ -79,7 +79,11 @@ def record(ctx, recording_file, interval, duration):
 @click.argument(
     'recording_file', default='recording.mtime', type=click.File('rb'))
 def analyze(recording_file):
-    reporter = Reporter(DumpedSamples(recording_file))
-    reporter.stats()
+    reporter = Reporter(list(decode_file_iter(recording_file)))
+
+    echo('== Stats ==')
+    for stat, val in sorted(reporter.get_stats().items()):
+        echo('  %s = %s' % (stat, val))
     echo()
+
     reporter.print_top(reporter.get_groupings())
