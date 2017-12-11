@@ -1,0 +1,8 @@
+dependencies:
+  post:
+    - pip install flake8 pylint>=1.6.4
+
+test:
+  pre:
+    - flake8 mongotime/
+    - pylint --disable=locally-disabled,fixme mongotime/
