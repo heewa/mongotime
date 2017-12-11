@@ -1,6 +1,7 @@
 from time import time, sleep
-from threading import Thread, Event
 from Queue import Full
+
+from .thread_with_stop import ThreadWithStop
 
 
 OP_KEYS = {
@@ -11,7 +12,7 @@ OP_KEYS = {
 """
 
 
-class Sampler(Thread):
+class Sampler(ThreadWithStop):
     """Samples the DB for Ops at a regular interval
     """
 
@@ -22,27 +23,12 @@ class Sampler(Thread):
         self._sample_queue = sample_queue
         self._interval_sec = interval_sec
         self._client_id = None
-        self._stop = Event()
-        self._stop.set()
 
         # Some stats
         self.num_samples = 0
         self.num_ops = 0
 
-    def stop(self):
-        if self._stop.is_set():
-            raise RuntimeError('Sampler is already stopped')
-        self._stop.set()
-        self.join()
-
-    def run(self):
-        self._stop.clear()
-        try:
-            self._run_loop()
-        finally:
-            self._stop.clear()
-
-    def _run_loop(self):
+    def _run(self):
         # Get our client ID so we can exclude our own sampling Ops
         self._client_id = self._db.admin.command('whatsmyuri')['you']
 

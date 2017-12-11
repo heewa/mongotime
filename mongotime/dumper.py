@@ -1,10 +1,11 @@
-from threading import Thread, Event
 from Queue import Empty
 
 from bson import BSON
 
+from .thread_with_stop import ThreadWithStop
 
-class Dumper(Thread):
+
+class Dumper(ThreadWithStop):
     """Writes samples to a file
     """
 
@@ -13,28 +14,13 @@ class Dumper(Thread):
 
         self._dumpfile = dumpfile
         self._sample_queue = sample_queue
-        self._stop = Event()
-        self._stop.set()
 
-    def stop(self):
-        if self._stop.is_set():
-            raise RuntimeError('Dumper is already stopped')
-        self._stop.set()
-        self.join()
-
-    def run(self):
-        self._stop.clear()
-        try:
-            self._run_loop()
-        finally:
-            self._stop.clear()
-
-        self._dumpfile.flush()
-
-    def _run_loop(self):
+    def _run(self):
         while not self._stop.is_set():
             try:
                 sample = self._sample_queue.get(block=True, timeout=1)
                 self._dumpfile.write(BSON.encode(sample))
             except Empty:
                 pass
+
+        self._dumpfile.flush()
