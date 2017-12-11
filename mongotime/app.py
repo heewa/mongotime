@@ -31,7 +31,8 @@ def cli(ctx, db):
 @cli.command()
 @click.option('--interval', '-i', default=100, help='Sampling interval in ms')
 @click.option('--duration', '-d', default=0, help='Duration in sec to record')
-@click.argument('recording_file', type=click.File('wb'))
+@click.argument(
+    'recording_file', default='recording.mtime', type=click.File('wb'))
 @click.pass_context
 def record(ctx, recording_file, interval, duration):
     sample_queue = Queue(maxsize=100)
@@ -68,7 +69,8 @@ def record(ctx, recording_file, interval, duration):
 
 
 @cli.command()
-@click.argument('recording_file', type=click.File('rb'))
+@click.argument(
+    'recording_file', default='recording.mtime', type=click.File('rb'))
 def report(recording_file, **kwargs):
     run_report(DumpedSamples(recording_file), **kwargs)
 
