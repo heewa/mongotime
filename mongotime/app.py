@@ -11,7 +11,7 @@ from pymongo import MongoClient
 from .sampler import Sampler
 from .dumper import Dumper
 from .reporter import Reporter
-from .samples import DumpedSamples, ServedSamples
+from .samples import DumpedSamples
 
 
 DEFAULT_PORT = 2846
@@ -30,10 +30,10 @@ def cli(ctx, db):
 
 @cli.command()
 @click.option('--interval', '-i', default=100, help='Sampling interval in ms')
-@click.option('--duration', '-d', default=0, help='Duration in sec to sample')
-@click.argument('dumpfile', type=click.File('wb'))
+@click.option('--duration', '-d', default=0, help='Duration in sec to record')
+@click.argument('recording_file', type=click.File('wb'))
 @click.pass_context
-def dump(ctx, dumpfile, interval, duration):
+def record(ctx, recording_file, interval, duration):
     sample_queue = Queue(maxsize=100)
 
     sampler = Sampler(
@@ -42,7 +42,7 @@ def dump(ctx, dumpfile, interval, duration):
         interval_sec=float(interval) / 1000)
     sampler.start()
 
-    dumper = Dumper(sample_queue, dumpfile)
+    dumper = Dumper(sample_queue, recording_file)
     dumper.start()
 
     start = time()
@@ -61,44 +61,19 @@ def dump(ctx, dumpfile, interval, duration):
         echo()
         echo(style('Stopping', fg='red'))
     else:
-        echo('Finalizing dump')
+        echo('Finalizing recording of samples')
 
     sampler.stop()
     dumper.stop()
 
 
 @cli.command()
-def serve():
-    echo('Serving a profile')
+@click.argument('recording_file', type=click.File('rb'))
+def report(recording_file, **kwargs):
+    run_report(DumpedSamples(recording_file), **kwargs)
 
 
-@cli.group()
-def report():
-    pass
-
-
-@report.command('dump')
-@click.argument('dumpfile', type=click.File('rb'))
-@click.option('--short/--long', default=True)
-@click.option('--query')
-def report_dump(dumpfile, **kwargs):
-    run_report(DumpedSamples(dumpfile), **kwargs)
-
-
-@report.command('server')
-@click.argument('server', default='localhost:%d' % DEFAULT_PORT)
-@click.option('--short/--long', default=True)
-@click.option('--query')
-def report_server(server, **kwargs):
-    if ':' in server:
-        host, port = server.rsplit(':', 1)
-        port = int(port)
-    else:
-        host, port = server, DEFAULT_PORT
-    run_report(ServedSamples(host, port), **kwargs)
-
-
-def run_report(samples, short=None, query=None):
+def run_report(samples, query=None):
     reporter = Reporter(samples, query=query)
     reporter.stats()
     echo()

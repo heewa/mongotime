@@ -37,8 +37,3 @@ class DumpedSamples(Samples):
             raise NotImplementedError
 
         return self._samples
-
-
-class ServedSamples(Samples):
-    def __init__(self, host, port):
-        pass

@@ -3,12 +3,12 @@ from threading import Thread, Event
 from Queue import Full
 
 
-"""Keys to keep from sampled Ops
-"""
 OP_KEYS = {
     'client', 'desc', 'locks', 'ns', 'op', 'query', 'microsecs_running',
     'waiting_for_lock',
 }
+"""Keys to keep from sampled Ops
+"""
 
 
 class Sampler(Thread):
