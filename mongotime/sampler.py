@@ -27,6 +27,7 @@ class Sampler(ThreadWithStop):
         # Some stats
         self.num_samples = 0
         self.num_ops = 0
+        self.num_dropped = 0
 
     def _run(self):
         # Get our client ID so we can exclude our own sampling Ops
@@ -42,8 +43,8 @@ class Sampler(ThreadWithStop):
             try:
                 self._sample_queue.put(sample, block=False)
             except Full:
-                # TODO: keep stats on dropped samples
-                pass
+                # Keep stats on dropped samples
+                self.num_dropped += 1
 
             # Sleep for remaining time. It's ok if we under-sample, but don't
             # go over.

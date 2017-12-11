@@ -62,6 +62,13 @@ def record(ctx, recording_file, interval, duration):
         echo()
         echo(style('Stopping', fg='red'))
     else:
+        if sampler.num_dropped:
+            echo('%s dropped %d / %d (%.2f%%) samples - unable to keep up' % (
+                style('WARNING:', fg='red'),
+                sampler.num_dropped,
+                sampler.num_samples,
+                100.0 * sampler.num_dropped / sampler.num_samples))
+
         echo('Finalizing recording of samples')
 
     sampler.stop()
