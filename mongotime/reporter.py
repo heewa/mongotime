@@ -47,7 +47,7 @@ class Reporter(object):
         grouping_samples = [
             {
                 't': sample['t'],
-                'f': [
+                'g': [
                     self._extract_groupings(op)
                     for op in sample['o']
                 ],
@@ -61,9 +61,9 @@ class Reporter(object):
                 grouping_samples = [
                     {
                         't': s['t'],
-                        'f': [
+                        'g': [
                             op_groupings
-                            for op_groupings in s['f']
+                            for op_groupings in s['g']
                             if matches_query(op_groupings, self._query)
                         ],
                     }
@@ -76,9 +76,9 @@ class Reporter(object):
         flat_samples = [
             {
                 't': sample['t'],
-                'f': dict(reduce(
+                'g': dict(reduce(
                     lambda a, b: a | set(b.items()),
-                    sample['f'],
+                    sample['g'],
                     set())),
             }
             for sample in grouping_samples
@@ -89,7 +89,7 @@ class Reporter(object):
         grouping_series = defaultdict(
             lambda: defaultdict(lambda: [0]*len(samples)))
         for sample in flat_samples:
-            for grouping, value in sample['f'].items():
+            for grouping, value in sample['g'].items():
                 index = index_by_ts[sample['t']]
                 grouping_series[grouping][value][index] = 1
 
