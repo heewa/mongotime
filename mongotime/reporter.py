@@ -39,7 +39,7 @@ class Reporter(object):
                 'f': [
                     self._extract_groupings(op)
                     for op in sample['o']
-                ]
+                ],
             }
             for sample in samples
         ]
