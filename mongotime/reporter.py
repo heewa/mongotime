@@ -72,7 +72,9 @@ class Reporter(object):
             except QueryError:
                 return
 
-        # Flatten groupings in each sample
+        # Deduplicate groupings in each sample, cuz multiple extractions could
+        # have yielded the same grouping, but that doesn't mean that grouping
+        # "happened" multiple times at a single point of time
         flat_samples = [
             {
                 't': sample['t'],
@@ -84,7 +86,8 @@ class Reporter(object):
             for sample in grouping_samples
         ]
 
-        # pivot groupings/time to feaures->times
+        # Pivot timeseries of collection of groupings to a timeseries per
+        # grouping. Ie [{t: t1, g: [g1, g4]}, ...] --> {g1: [t1, t3, ...], ...}
         index_by_ts = {s['t']: i for i, s in enumerate(samples)}
         grouping_series = defaultdict(
             lambda: defaultdict(lambda: [0]*len(samples)))
