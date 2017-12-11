@@ -18,7 +18,7 @@ DEFAULT_PORT = 2846
 
 
 def run():
-    cli(obj={})
+    cli(obj={})  # pylint: disable=unexpected-keyword-arg
 
 
 @click.group()
@@ -71,7 +71,7 @@ def record(ctx, recording_file, interval, duration):
 @cli.command()
 @click.argument(
     'recording_file', default='recording.mtime', type=click.File('rb'))
-def analyze(recording_file, **kwargs):
+def analyze(recording_file):
     reporter = Reporter(DumpedSamples(recording_file))
     reporter.stats()
     echo()

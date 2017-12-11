@@ -149,7 +149,7 @@ class QueryError(Exception):
 
 def matches_query(op_groupings, query):
     try:
-        return eval(query, dict(op_groupings))
+        return eval(query, dict(op_groupings))  # pylint: disable=eval-used
     except Exception as err:
         echo('Error (%s) running query on Op: %s' % (
             style(str(err), fg='red'),
