@@ -71,12 +71,8 @@ def record(ctx, recording_file, interval, duration):
 @cli.command()
 @click.argument(
     'recording_file', default='recording.mtime', type=click.File('rb'))
-def report(recording_file, **kwargs):
-    run_report(DumpedSamples(recording_file), **kwargs)
-
-
-def run_report(samples, query=None):
-    reporter = Reporter(samples, query=query)
+def analyze(recording_file, **kwargs):
+    reporter = Reporter(DumpedSamples(recording_file))
     reporter.stats()
     echo()
     reporter.top()

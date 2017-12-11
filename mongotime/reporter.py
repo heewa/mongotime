@@ -11,7 +11,7 @@ class Reporter(object):
         self._samples = samples
         self._query = query
 
-        self._feature_extractors = {
+        self._grouping_extractors = {
             # Passthrough
             'ns': lambda op: op.get('ns') or '',
             'client': lambda op: op.get('client') or '',
@@ -32,12 +32,12 @@ class Reporter(object):
     def top(self):
         samples = self._samples.select_latest()
 
-        # Extract features for each op
-        feature_samples = [
+        # Extract groupings for each op
+        grouping_samples = [
             {
                 't': sample['t'],
                 'f': [
-                    self._extract_features(op)
+                    self._extract_groupings(op)
                     for op in sample['o']
                 ]
             }
@@ -47,21 +47,21 @@ class Reporter(object):
         # Filter by query
         if self._query:
             try:
-                feature_samples = [
+                grouping_samples = [
                     {
                         't': s['t'],
                         'f': [
-                            op_features
-                            for op_features in s['f']
-                            if matches_query(op_features, self._query)
+                            op_groupings
+                            for op_groupings in s['f']
+                            if matches_query(op_groupings, self._query)
                         ],
                     }
-                    for s in feature_samples
+                    for s in grouping_samples
                 ]
             except QueryError:
                 return
 
-        # Flatten features in each sample
+        # Flatten groupings in each sample
         flat_samples = [
             {
                 't': sample['t'],
@@ -70,29 +70,29 @@ class Reporter(object):
                     sample['f'],
                     set())),
             }
-            for sample in feature_samples
+            for sample in grouping_samples
         ]
 
-        # pivot features/time to feaures->times
+        # pivot groupings/time to feaures->times
         index_by_ts = {s['t']: i for i, s in enumerate(samples)}
-        feature_series = defaultdict(
+        grouping_series = defaultdict(
             lambda: defaultdict(lambda: [0]*len(samples)))
         for sample in flat_samples:
-            for feature, value in sample['f'].items():
+            for grouping, value in sample['f'].items():
                 index = index_by_ts[sample['t']]
-                feature_series[feature][value][index] = 1
+                grouping_series[grouping][value][index] = 1
 
         # turn into % time spent
-        feature_times = {
-            feature: {
+        grouping_times = {
+            grouping: {
                 value: 100.0 * sum(series) / len(series)
                 for value, series in value_series.items()
             }
-            for feature, value_series in feature_series.items()
+            for grouping, value_series in grouping_series.items()
         }
 
-        for feature, value_percs in sorted(feature_times.items()):
-            echo('%s:' % style(feature, fg='blue'))
+        for grouping, value_percs in sorted(grouping_times.items()):
+            echo('%s:' % style(grouping, fg='blue'))
 
             top_values = sorted(
                 value_percs.items(), key=lambda(v, p): p, reverse=True)[:5]
@@ -110,10 +110,10 @@ class Reporter(object):
 
             echo()
 
-    def _extract_features(self, op):
+    def _extract_groupings(self, op):
         return {
             name: extractor(op)
-            for name, extractor in self._feature_extractors.items()
+            for name, extractor in self._grouping_extractors.items()
         }
 
 
@@ -147,11 +147,11 @@ class QueryError(Exception):
     pass
 
 
-def matches_query(op_features, query):
+def matches_query(op_groupings, query):
     try:
-        return eval(query, dict(op_features))
+        return eval(query, dict(op_groupings))
     except Exception as err:
         echo('Error (%s) running query on Op: %s' % (
             style(str(err), fg='red'),
-            style(str(op_features), fg='blue')))
+            style(str(op_groupings), fg='blue')))
         raise QueryError(str(err))
