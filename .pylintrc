@@ -1,0 +1,5 @@
+[MESSAGES CONTROL]
+disable=no-value-for-parameter,missing-docstring,too-few-public-methods,no-init,abstract-method,arguments-differ,bad-continuation,too-many-arguments,invalid-name
+
+[REPORTS]
+output-format=colorized
