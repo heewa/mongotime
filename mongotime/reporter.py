@@ -29,7 +29,7 @@ class Reporter(object):
         for stat, val in sorted(self._samples.stats().items()):
             echo('  %s = %s' % (stat, val))
 
-    def top(self):
+    def get_groupings(self):
         samples = self._samples.select_latest()
 
         # Extract groupings for each op
@@ -82,6 +82,10 @@ class Reporter(object):
                 index = index_by_ts[sample['t']]
                 grouping_series[grouping][value][index] = 1
 
+        return grouping_series
+
+    @staticmethod
+    def print_top(grouping_series):
         # turn into % time spent
         grouping_times = {
             grouping: {

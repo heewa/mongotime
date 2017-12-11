@@ -75,4 +75,4 @@ def analyze(recording_file):
     reporter = Reporter(DumpedSamples(recording_file))
     reporter.stats()
     echo()
-    reporter.top()
+    reporter.print_top(reporter.get_groupings())
