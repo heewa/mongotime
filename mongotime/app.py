@@ -94,12 +94,13 @@ def record(ctx, recording_file, interval, duration):
     'new_grouping',
     type=(unicode, unicode),
     metavar='NAME PY_STATEMENT',
+    default=(None, None),
     help='Create a grouping from a name and a python statement which when '
          'eval\'d results in the grouping value')
 def analyze(recording_file, focus=None, num_top=None, new_grouping=None):
     reporter = Reporter(list(decode_file_iter(recording_file)))
 
-    if new_grouping:
+    if new_grouping[0] and new_grouping[1]:
         reporter.add_grouping_from_eval(*new_grouping)
 
     echo('== Stats ==')
