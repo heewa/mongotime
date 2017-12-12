@@ -13,9 +13,9 @@ class Reporter(object):
 
         self._grouping_extractors = {
             # Passthrough
-            'ns': lambda op: op.get('ns') or '',
-            'client': lambda op: op.get('client') or '',
-            'op': lambda op: op.get('op') or '',
+            'ns': lambda op: op.get('ns'),
+            'client': lambda op: op.get('client'),
+            'op': lambda op: op.get('op'),
             'query': extract_query,
 
             'db': lambda op: op.get('ns', '').split('.', 1)[0],
