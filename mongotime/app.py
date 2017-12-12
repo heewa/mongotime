@@ -77,11 +77,19 @@ def record(ctx, recording_file, interval, duration):
 
 @cli.command()
 @click.argument(
-    'recording_file', default='recording.mtime', type=click.File('rb'))
-@click.option('--grouping', help='View values in just this grouping')
+    'recording_file',
+    default='recording.mtime',
+    type=click.File('rb'))
 @click.option(
-    '--top', type=int, help='View top N values in groupings, or 0 for all')
-def analyze(recording_file, grouping=None, top=None):
+    '--focus',
+    metavar='GROUPING',
+    help='View values in just this grouping')
+@click.option(
+    '--top',
+    'num_top',
+    type=int,
+    help='View top N values in groupings, or 0 for all')
+def analyze(recording_file, focus=None, num_top=None):
     reporter = Reporter(list(decode_file_iter(recording_file)))
 
     echo('== Stats ==')
@@ -92,10 +100,10 @@ def analyze(recording_file, grouping=None, top=None):
     groupings = reporter.get_groupings()
 
     # Optionally focus on one grouping
-    if grouping:
-        groupings = {grouping: groupings[grouping]}
-    elif top is None:
+    if focus:
+        groupings = {focus: groupings[focus]}
+    elif num_top is None:
         # If not explicitly told to show all, default to 5
-        top = 5
+        num_top = 5
 
-    reporter.print_top(groupings, num_top=top)
+    reporter.print_top(groupings, num_top=num_top)
