@@ -24,6 +24,10 @@ class Reporter(object):
             'client_host': lambda op: op.get('client', ':').split(':', 1)[0],
         }
 
+    def add_grouping_from_eval(self, name, stmnt):
+        self._grouping_extractors[name] = wrap_grouping_fn(
+            lambda op: eval(stmnt, {'op': op}))  # pylint: disable=eval-used
+
     def get_stats(self):
         if not self._samples:
             return {'num_samples': 0, 'num_ops': 0}
@@ -180,3 +184,18 @@ def matches_query(op_groupings, query):
             style(str(err), fg='red'),
             style(str(op_groupings), fg='blue')))
         raise QueryError(str(err))
+
+
+def wrap_grouping_fn(fn):
+    """Given a python statement, create a function that, given an op, will
+    return a grouping value. Handles exceptions and string conversation.
+    """
+    def get_grouping_value(op):
+        try:
+            return str(fn(op))
+        except Exception as err:  # pylint: disable=broad-except
+            # Catching all exceptions here in order to continue with report
+            # while showing user the error (and how much it happened)
+            return '%s - %s' % (style('ERR', fg='red'), err)
+
+    return get_grouping_value
