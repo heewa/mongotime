@@ -43,6 +43,9 @@ def record(ctx, recording_file, interval, duration):
         interval_sec=float(interval) / 1000)
     sampler.start()
 
+    # Echo to stderr if recording_file is stdout
+    errout = recording_file.fileno() == 1
+
     dumper = Dumper(sample_queue, recording_file)
     dumper.start()
 
@@ -50,26 +53,30 @@ def record(ctx, recording_file, interval, duration):
     end = duration and start + duration
 
     try:
-        echo('Sampling Mongo...')
+        echo('Sampling Mongo...', err=errout)
 
         left = end - time()
         while not duration or left > 0:
             sleep(duration and min(left, 3) or 3)
-            echo('  %6d samples  %6d ops' % (
-                sampler.num_samples, sampler.num_ops))
+            echo(
+                '  %6d samples  %6d ops' % (
+                    sampler.num_samples, sampler.num_ops),
+                err=errout)
             left = end - time()
     except KeyboardInterrupt:
-        echo()
-        echo(style('Stopping', fg='red'))
+        echo(err=errout)
+        echo(style('Stopping', fg='red'), err=errout)
     else:
         if sampler.num_dropped:
-            echo('%s dropped %d / %d (%.2f%%) samples - unable to keep up' % (
-                style('WARNING:', fg='red'),
-                sampler.num_dropped,
-                sampler.num_samples,
-                100.0 * sampler.num_dropped / sampler.num_samples))
+            echo(
+                '%s dropped %d / %d (%.2f%%) samples - unable to keep up' % (
+                    style('WARNING:', fg='red'),
+                    sampler.num_dropped,
+                    sampler.num_samples,
+                    100.0 * sampler.num_dropped / sampler.num_samples),
+                err=errout)
 
-        echo('Finalizing recording of samples')
+        echo('Finalizing recording of samples', err=errout)
 
     sampler.stop()
     dumper.stop()
