@@ -16,7 +16,9 @@ class Reporter(object):
             'ns': lambda op: op.get('ns'),
             'client': lambda op: op.get('client'),
             'op': lambda op: op.get('op'),
-            'query': extract_query,
+
+            'query': lambda op: repr(extract_query(op)),
+            'query_keys': lambda op: repr(strip_query(extract_query(op))),
 
             'db': lambda op: op.get('ns', '').split('.', 1)[0],
             'collection': lambda op: op.get('ns', '.').split('.', 1)[1],
@@ -150,7 +152,14 @@ def extract_query(op):
     """Extract a hashable value representing the query, with an attempt
     at removing the particular values for keys in the query
     """
-    return repr(strip_values(op.get('query')))
+    if not op.get('query') or op.get('op') not in ('query', 'getmore'):
+        return None
+    elif 'filter' in op['query']:
+        return op['query']['filter']
+    elif 'find' in op['query']:
+        # Empty find
+        return {}
+    return op['query']
 
 
 KEYS_TO_NOT_STRIP = {
@@ -161,14 +170,14 @@ KEYS_TO_NOT_STRIP = {
 }
 
 
-def strip_values(data):
+def strip_query(data):
     if isinstance(data, dict):
         return [
             {key: strip_values(value)} if key in KEYS_TO_NOT_STRIP else key
             for key, value in data.items()
         ]
     elif isinstance(data, list):
-        return [strip_values(item) for item in data]
+        return [strip_query(item) for item in sorted(data)]
     return data
 
 
