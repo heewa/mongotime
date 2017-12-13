@@ -172,10 +172,10 @@ KEYS_TO_NOT_STRIP = {
 
 def strip_query(data):
     if isinstance(data, dict):
-        return [
-            {key: strip_values(value)} if key in KEYS_TO_NOT_STRIP else key
-            for key, value in data.items()
-        ]
+        return {
+            key: strip_query(value) if key in KEYS_TO_NOT_STRIP else '*'
+            for key, value in sorted(data.items())
+        }
     elif isinstance(data, list):
         return [strip_query(item) for item in sorted(data)]
     return data
