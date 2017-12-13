@@ -196,6 +196,6 @@ def wrap_grouping_fn(fn):
         except Exception as err:  # pylint: disable=broad-except
             # Catching all exceptions here in order to continue with report
             # while showing user the error (and how much it happened)
-            return '%s - %s' % (style('ERR', fg='red'), err)
+            return '%s - %s' % (style(type(err).__name__, fg='red'), err)
 
     return get_grouping_value
