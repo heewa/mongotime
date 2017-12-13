@@ -4,14 +4,6 @@ from Queue import Full
 from .thread_with_stop import ThreadWithStop
 
 
-OP_KEYS = {
-    'client', 'desc', 'locks', 'ns', 'op', 'query', 'microsecs_running',
-    'waiting_for_lock',
-}
-"""Keys to keep from sampled Ops
-"""
-
-
 class Sampler(ThreadWithStop):
     """Samples the DB for Ops at a regular interval
     """
@@ -61,11 +53,7 @@ class Sampler(ThreadWithStop):
         # Filter for keys we're interested in, and remove empty ones. Also
         # remove our own Ops
         ops = [
-            dict(
-                (key, value)
-                for key, value in op.items()
-                if value and key in OP_KEYS
-            )
+            {key: value for key, value in op.iteritems() if value}
             for op in result['inprog']
             if not (
                 op.get('client') == self._client_id and
