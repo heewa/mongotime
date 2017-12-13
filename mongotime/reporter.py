@@ -26,7 +26,7 @@ class Reporter(object):
             'client_host': lambda op: op.get('client', ':').split(':', 1)[0],
 
             # The whole op, as a way of seeing a sampling of them
-            'raw': lambda op: str(op),
+            'raw': str,
         }
 
     def add_grouping_from_eval(self, name, stmnt):
