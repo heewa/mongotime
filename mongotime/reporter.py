@@ -107,12 +107,21 @@ class Reporter(object):
 
         return grouping_series
 
-    @staticmethod
-    def print_top(grouping_series, num_top=None):
-        # turn into % time spent
+    def print_top(self, grouping_series, num_top=None):
+        # turn into % time spent in general
         grouping_times = {
             grouping: {
                 value: 100.0 * sum(series) / len(series)
+                for value, series in value_series.items()
+            }
+            for grouping, value_series in grouping_series.items()
+        }
+
+        # turn into % of active-time spent on each thing
+        num_active_times = len(set(s['t'] for s in self._samples if s['o']))
+        grouping_active_usage = {
+            grouping: {
+                value: 100.0 * sum(series) / num_active_times
                 for value, series in value_series.items()
             }
             for grouping, value_series in grouping_series.items()
@@ -140,7 +149,11 @@ class Reporter(object):
                     styled_perc = style(perc_str, bold=True)
                 else:
                     styled_perc = perc_str
-                echo('  %s: %s' % (value, styled_perc))
+
+                perc_active_str = '%.2f%%' % (
+                    grouping_active_usage[grouping][value])
+
+                echo('  %s: %s %s' % (value, styled_perc, perc_active_str))
 
             echo()
 
