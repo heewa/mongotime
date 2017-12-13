@@ -91,17 +91,18 @@ def record(ctx, recording_file, interval, duration):
     help='View top N values in groupings, or 0 for all')
 @click.option(
     '--grouping',
-    'new_grouping',
+    'new_groupings',
     type=(unicode, unicode),
+    multiple=True,
     metavar='NAME PY_STATEMENT',
-    default=(None, None),
     help='Create a grouping from a name and a python statement which when '
          'eval\'d results in the grouping value')
-def analyze(recording_file, focus=None, num_top=None, new_grouping=None):
+def analyze(recording_file, focus=None, num_top=None, new_groupings=None):
     reporter = Reporter(list(decode_file_iter(recording_file)))
 
-    if new_grouping[0] and new_grouping[1]:
-        reporter.add_grouping_from_eval(*new_grouping)
+    if new_groupings:
+        for new_grouping in new_groupings:
+            reporter.add_grouping_from_eval(*new_grouping)
 
     echo('== Stats ==')
     for stat, val in sorted(reporter.get_stats().items()):
