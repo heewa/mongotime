@@ -12,6 +12,7 @@ from bson import decode_file_iter
 from .sampler import Sampler
 from .dumper import Dumper
 from .reporter import Reporter
+from .plugins import load_plugins
 
 
 DEFAULT_PORT = 2846
@@ -110,6 +111,10 @@ def analyze(recording_file, focus=None, num_top=None, new_groupings=None):
     if new_groupings:
         for new_grouping in new_groupings:
             reporter.add_grouping_from_eval(*new_grouping)
+
+    plugins = load_plugins()
+    for grouping_class in plugins['groupings']:
+        reporter.add_grouping(grouping_class)
 
     echo('== Stats ==')
     for stat, val in sorted(reporter.get_stats().items()):

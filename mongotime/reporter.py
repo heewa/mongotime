@@ -11,7 +11,7 @@ class Reporter(object):
         self._samples = samples
         self._query = query
 
-        self._grouping_extractors = {
+        self._builtin_groupings = {
             # Passthrough
             'ns': lambda op: op.get('ns'),
             'client': lambda op: op.get('client'),
@@ -29,9 +29,18 @@ class Reporter(object):
             'raw': str,
         }
 
+        self._plugin_groupings = {}
+        self._eval_groupings = {}
+
+    def add_grouping(self, grouping_class):
+        # Store instance of grouping, not the class
+        grouping = grouping_class()
+        self._plugin_groupings[grouping.get_name()] = grouping
+
     def add_grouping_from_eval(self, name, stmnt):
-        self._grouping_extractors[name] = wrap_grouping_fn(
-            lambda op: eval(stmnt, {'op': op}))  # pylint: disable=eval-used
+        self._eval_groupings[name] = (
+            lambda op, g: eval(  # pylint: disable=eval-used
+                stmnt, {'o': op, 'g': g}))
 
     def get_stats(self):
         if not self._samples:
@@ -53,6 +62,7 @@ class Reporter(object):
         samples = self._samples
 
         # Extract groupings for each op
+        #   [{t: t1, g: [{g1: [v1]}]}]
         grouping_samples = [
             {
                 't': sample['t'],
@@ -158,10 +168,27 @@ class Reporter(object):
             echo()
 
     def _extract_groupings(self, op):
-        return {
+        # Get builtin groupings first, then pass those to the user ones
+        groupings = {
             name: extractor(op)
-            for name, extractor in self._grouping_extractors.items()
+            for name, extractor in self._builtin_groupings.items()
         }
+
+        user_groupings = {}
+
+        # First plugin groupings
+        for name, grouping in self._plugin_groupings.iteritems():
+            user_groupings[name] = get_grouping_value(
+                grouping.get_value, op, groupings)
+
+        # Then cmdline ones
+        for name, get_value in self._eval_groupings.iteritems():
+            user_groupings[name] = get_grouping_value(
+                get_value, op, groupings)
+
+        groupings.update(user_groupings)
+
+        return groupings
 
 
 def extract_query(op):
@@ -170,6 +197,8 @@ def extract_query(op):
     """
     if not op.get('query') or op.get('op') not in ('query', 'getmore'):
         return None
+    elif isinstance(op['query'], (str, unicode)):
+        return op['query']
     elif 'filter' in op['query']:
         return op['query']['filter']
     elif 'find' in op['query']:
@@ -211,16 +240,13 @@ def matches_query(op_groupings, query):
         raise QueryError(str(err))
 
 
-def wrap_grouping_fn(fn):
-    """Given a python statement, create a function that, given an op, will
-    return a grouping value. Handles exceptions and string conversation.
-    """
-    def get_grouping_value(op):
-        try:
-            return str(fn(op))
-        except Exception as err:  # pylint: disable=broad-except
-            # Catching all exceptions here in order to continue with report
-            # while showing user the error (and how much it happened)
-            return '%s - %s' % (style(type(err).__name__, fg='red'), err)
-
-    return get_grouping_value
+def get_grouping_value(fn, op, groupings):
+    try:
+        value = fn(op, groupings)
+        if not isinstance(value, (str, unicode)):
+            value = str(value)
+        return value
+    except Exception as err:  # pylint: disable=broad-except
+        # Catching all exceptions here in order to continue with report
+        # while showing user the error (and how much it happened)
+        return '%s - %s' % (style(type(err).__name__, fg='red'), err)
