@@ -23,23 +23,26 @@ def run():
 
 
 @click.group()
-@click.option('--db', default='localhost:27017', help='Location of Mongo host')
 @click.pass_context
-def cli(ctx, db):
-    ctx.obj['db'] = MongoClient(db)
+def cli(ctx):
+    pass
 
 
 @cli.command()
+@click.option('--host', default='localhost:27017', help='Location of Mongo host')
 @click.option('--interval', '-i', default=100, help='Sampling interval in ms')
 @click.option('--duration', '-d', default=0, help='Duration in sec to record')
 @click.argument(
     'recording_file', default='recording.mtime', type=click.File('wb'))
 @click.pass_context
-def record(ctx, recording_file, interval, duration):
+def record(ctx, recording_file, host, interval, duration):
+    echo('Connecting to Mongo at %s' % host)
+    client = MongoClient(host)
+
     sample_queue = Queue(maxsize=100)
 
     sampler = Sampler(
-        ctx.obj['db'],
+        client,
         sample_queue,
         interval_sec=float(interval) / 1000)
     sampler.start()
@@ -54,8 +57,6 @@ def record(ctx, recording_file, interval, duration):
     end = duration and start + duration
 
     try:
-        echo('Sampling Mongo...', err=errout)
-
         left = end - time()
         while not duration or left > 0:
             sleep(duration and min(left, 3) or 3)
