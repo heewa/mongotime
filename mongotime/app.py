@@ -121,9 +121,19 @@ def record(recording_file, host, interval, duration):
     metavar='NAME PY_STATEMENT',
     help='Create a grouping from a name and a python statement which when '
          'eval\'d results in the grouping value')
-def analyze(recording_file, focus=None, num_top=None, new_groupings=None):
+@click.option(
+    '--filter',
+    'filter_stmt',
+    metavar='PY_STATEMENT',
+    help='Filter ops by this python statement returning True')
+def analyze(
+        recording_file,
+        focus=None,
+        num_top=None,
+        new_groupings=None,
+        filter_stmt=None):
     # Set up reporter
-    reporter = Reporter()
+    reporter = Reporter(filter_stmt=filter_stmt)
 
     if new_groupings:
         for new_grouping in new_groupings:

@@ -7,8 +7,17 @@ class Reporter(object):
     """Analyses samples and builds reports.
     """
 
-    def __init__(self, query=None):
-        self._query = query
+    def __init__(self, filter_stmt=None):
+        if filter_stmt:
+            filter_code = compile(filter_stmt, '', 'eval')
+
+            def run_filter(groupings):
+                return eval(  # pylint: disable=eval-used
+                    filter_code, {}, groupings)
+
+            self._filter = run_filter
+        else:
+            self._filter = None
 
         self._builtin_groupings = {
             # Passthrough
@@ -71,6 +80,11 @@ class Reporter(object):
                 100.0 * len(self._active_sampling_times) /
                 len(self._sampling_times))
 
+        if self._filter:
+            summary['perc_active_filtered'] = (
+                100.0 * len(self._filtered_sampling_times) /
+                len(self._sampling_times))
+
         return summary
 
     def add_sample(self, sample_t, ops):
@@ -84,10 +98,11 @@ class Reporter(object):
 
         for op in ops:
             groupings = self._extract_groupings(op)
-            self._filtered_sampling_times.add(sample_t)
+            if not self._filter or self._filter(groupings):
+                self._filtered_sampling_times.add(sample_t)
 
-            for name, value in groupings.iteritems():
-                self._grouping_values[name][str(value)].add(sample_t)
+                for name, value in groupings.iteritems():
+                    self._grouping_values[name][str(value)].add(sample_t)
 
     def print_top(self, focus=None, num_top=None):
         grouping_values = self._grouping_values
@@ -119,6 +134,14 @@ class Reporter(object):
             } for grouping, value_series in grouping_values.items()
         }
 
+        # get % of filtered-active time for each thing
+        grouping_filtered_usage = {
+            grouping: {
+                value: 100.0 * len(times) / len(self._filtered_sampling_times)
+                for value, times in value_series.items()
+            } for grouping, value_series in grouping_values.items()
+        }
+
         for grouping, value_percs in sorted(grouping_times.items()):
             msg = '%s:' % style(grouping, fg='blue')
             if num_top and len(value_percs) > num_top:
@@ -145,7 +168,13 @@ class Reporter(object):
                 perc_active_str = '%.2f%%' % (
                     grouping_active_usage[grouping][value])
 
-                echo('  %s: %s %s' % (value, styled_perc, perc_active_str))
+                line = '  %s: %s %s' % (value, styled_perc, perc_active_str)
+
+                if self._filter:
+                    line = '%s %.2f%%' % (
+                        line, grouping_filtered_usage[grouping][value])
+
+                echo(line)
 
             echo()
 
@@ -206,20 +235,6 @@ def strip_query(data):
     elif isinstance(data, list):
         return [strip_query(item) for item in sorted(data)]
     return data
-
-
-class QueryError(Exception):
-    pass
-
-
-def matches_query(op_groupings, query):
-    try:
-        return eval(query, dict(op_groupings))  # pylint: disable=eval-used
-    except Exception as err:
-        echo('Error (%s) running query on Op: %s' % (
-            style(str(err), fg='red'),
-            style(str(op_groupings), fg='blue')))
-        raise QueryError(str(err))
 
 
 def get_grouping_value(fn, op, groupings):
