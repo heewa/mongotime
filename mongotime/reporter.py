@@ -11,26 +11,26 @@ class Reporter(object):
         if filter_stmt:
             filter_code = compile(filter_stmt, '', 'eval')
 
-            def run_filter(groupings):
+            def run_filter(aspects):
                 return eval(  # pylint: disable=eval-used
-                    filter_code, {}, groupings)
+                    filter_code, {}, aspects)
 
             self._filter = run_filter
         else:
             self._filter = None
 
-        self._plugin_groupings = {}
-        self._eval_groupings = {}
+        self._plugin_aspects = {}
+        self._eval_aspects = {}
 
         self.report = Report(is_filtered=self._filter is not None)
 
-    def add_grouping(self, grouping_class):
-        # Store instance of grouping, not the class
-        grouping = grouping_class()
-        self._plugin_groupings[grouping.get_name()] = grouping
+    def add_aspect(self, aspect_class):
+        # Store instance of aspect, not the class
+        aspect = aspect_class()
+        self._plugin_aspects[aspect.get_name()] = aspect
 
-    def add_grouping_from_eval(self, name, stmnt):
-        self._eval_groupings[name] = (
+    def add_aspect_from_eval(self, name, stmnt):
+        self._eval_aspects[name] = (
             lambda op, g: eval(  # pylint: disable=eval-used
                 stmnt, {'o': op, 'g': g}))
 
@@ -44,38 +44,38 @@ class Reporter(object):
         self.report.active_sampling_times.add(sample_t)
 
         for op in ops:
-            groupings = self._extract_groupings(op)
-            if not self._filter or self._filter(groupings):
+            aspects = self._extract_aspects(op)
+            if not self._filter or self._filter(aspects):
                 self.report.filtered_sampling_times.add(sample_t)
 
-                for name, value in groupings.iteritems():
-                    self.report.grouping_values[name][str(value)].add(sample_t)
+                for name, value in aspects.iteritems():
+                    self.report.aspect_values[name][str(value)].add(sample_t)
 
-    def _extract_groupings(self, op):
-        # Get builtin groupings first, then pass those to the user ones
-        groupings = {
+    def _extract_aspects(self, op):
+        # Get builtin aspects first, then pass those to the user ones
+        aspects = {
             name: extractor(op)
-            for name, extractor in BUILTIN_GROUPINGS.items()
+            for name, extractor in BUILTIN_ASPECTS.items()
         }
 
-        user_groupings = {}
+        user_aspects = {}
 
-        # First plugin groupings
-        for name, grouping in self._plugin_groupings.iteritems():
-            user_groupings[name] = get_grouping_value(
-                grouping.get_value, op, groupings)
+        # First plugin aspects
+        for name, aspect in self._plugin_aspects.iteritems():
+            user_aspects[name] = get_aspect_value(
+                aspect.get_value, op, aspects)
 
         # Then cmdline ones
-        for name, get_value in self._eval_groupings.iteritems():
-            user_groupings[name] = get_grouping_value(
-                get_value, op, groupings)
+        for name, get_value in self._eval_aspects.iteritems():
+            user_aspects[name] = get_aspect_value(
+                get_value, op, aspects)
 
-        groupings.update(user_groupings)
+        aspects.update(user_aspects)
 
-        return groupings
+        return aspects
 
 
-BUILTIN_GROUPINGS = {
+BUILTIN_ASPECTS = {
     # Passthrough
     'ns': lambda op: op.get('ns'),
     'client': lambda op: op.get('client'),
@@ -129,9 +129,9 @@ def strip_query(data):
     return data
 
 
-def get_grouping_value(fn, op, groupings):
+def get_aspect_value(fn, op, aspects):
     try:
-        return fn(op, groupings)
+        return fn(op, aspects)
     except Exception as err:  # pylint: disable=broad-except
         # Catching all exceptions here in order to continue with report
         # while showing user the error (and how much it happened)
@@ -153,9 +153,9 @@ class Report(object):
         # Set of times Mongo was sampled with filtered ops
         self.filtered_sampling_times = set()
 
-        # Mapping of grouping name to mapping of grouping value to times seen:
+        # Mapping of aspect name to mapping of aspect value to times seen:
         #   {g: {v: {t1, t2, ...}}}
-        self.grouping_values = defaultdict(lambda: defaultdict(set))
+        self.aspect_values = defaultdict(lambda: defaultdict(set))
 
     def get_summary(self):
         summary = {
@@ -180,11 +180,11 @@ class Report(object):
         return summary
 
     def print_top(self, focus=None, num_top=None):
-        grouping_values = self.grouping_values
+        aspect_values = self.aspect_values
         if focus:
-            grouping_values = {
+            aspect_values = {
                 name: times_by_value
-                for name, times_by_value in grouping_values.iteritems()
+                for name, times_by_value in aspect_values.iteritems()
                 if name in focus
             }
         elif num_top is None:
@@ -192,12 +192,12 @@ class Report(object):
             num_top = 5
 
         # Display guide
-        if grouping_values:
+        if aspect_values:
             echo('%s%%-of-active-time  %%-of-time' % (
                 '%-of-filtered-time  ' if self.is_filtered else ''))
             echo()
 
-        for name, times_by_value in sorted(grouping_values.items()):
+        for name, times_by_value in sorted(aspect_values.items()):
             msg = '%s:' % style(name, fg='blue')
             if num_top and len(times_by_value) > num_top:
                 msg = '%s (top %d of %d)' % (msg, num_top, len(times_by_value))

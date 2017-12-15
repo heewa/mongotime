@@ -106,21 +106,21 @@ def record(recording_file, host, interval, duration):
     type=click.File('rb'))
 @click.option(
     '--focus',
-    metavar='GROUPING',
-    help='View values in just this grouping')
+    metavar='ASPECT',
+    help='View items in just this aspect (category of activity)')
 @click.option(
     '--top',
     'num_top',
     type=int,
-    help='View top N values in groupings, or 0 for all')
+    help='View top N values in aspects, or 0 for all')
 @click.option(
-    '--grouping',
-    'new_groupings',
+    '--aspect',
+    'new_aspects',
     type=(unicode, unicode),
     multiple=True,
     metavar='NAME PY_STATEMENT',
-    help='Create a grouping from a name and a python statement which when '
-         'eval\'d results in the grouping value')
+    help='Create an aspect from a name and a python statement which when '
+         'eval\'d results in the aspect value')
 @click.option(
     '--filter',
     'filter_stmt',
@@ -130,18 +130,18 @@ def analyze(
         recording_file,
         focus=None,
         num_top=None,
-        new_groupings=None,
+        new_aspects=None,
         filter_stmt=None):
     # Set up reporter
     reporter = Reporter(filter_stmt=filter_stmt)
 
-    if new_groupings:
-        for new_grouping in new_groupings:
-            reporter.add_grouping_from_eval(*new_grouping)
+    if new_aspects:
+        for new_aspect in new_aspects:
+            reporter.add_aspect_from_eval(*new_aspect)
 
     plugins = load_plugins()
-    for grouping_class in plugins['groupings']:
-        reporter.add_grouping(grouping_class)
+    for aspect_class in plugins['aspects']:
+        reporter.add_aspect(aspect_class)
 
     # Stream samples to reporter
     for sample in decode_file_iter(recording_file):
