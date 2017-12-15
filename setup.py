@@ -45,5 +45,4 @@ setup(
         'click>=6.7,<7',
         'pymongo>=3.6.0,<4',
     ],
-    long_description='TODO',
-    zip_safe=False)
+    long_description='TODO')
