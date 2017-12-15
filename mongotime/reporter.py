@@ -183,72 +183,57 @@ class Report(object):
         grouping_values = self.grouping_values
         if focus:
             grouping_values = {
-                name: value_series
-                for name, value_series in grouping_values.iteritems()
+                name: times_by_value
+                for name, times_by_value in grouping_values.iteritems()
                 if name in focus
             }
         elif num_top is None:
             # If not explicitly told to show all, default to 5
             num_top = 5
 
-        # turn into % time spent in general by comparing # of times seen with
-        # # of times sampled
-        grouping_times = {
-            grouping: {
-                value: 100.0 * len(times) / len(self.sampling_times)
-                for value, times in value_series.items()
-            }
-            for grouping, value_series in grouping_values.items()
-        }
+        # Display guide
+        if grouping_values:
+            echo('%s%%-of-active-time  %%-of-time' % (
+                '%-of-filtered-time  ' if self.is_filtered else ''))
+            echo()
 
-        # turn into % of active-time spent on each thing
-        grouping_active_usage = {
-            grouping: {
-                value: 100.0 * len(times) / len(self.active_sampling_times)
-                for value, times in value_series.items()
-            } for grouping, value_series in grouping_values.items()
-        }
-
-        # get % of filtered-active time for each thing
-        grouping_filtered_usage = {
-            grouping: {
-                value: 100.0 * len(times) / len(self.filtered_sampling_times)
-                for value, times in value_series.items()
-            } for grouping, value_series in grouping_values.items()
-        }
-
-        for grouping, value_percs in sorted(grouping_times.items()):
-            msg = '%s:' % style(grouping, fg='blue')
-            if num_top and len(value_percs) > num_top:
-                msg = '%s (top %d of %d)' % (msg, num_top, len(value_percs))
+        for name, times_by_value in sorted(grouping_values.items()):
+            msg = '%s:' % style(name, fg='blue')
+            if num_top and len(times_by_value) > num_top:
+                msg = '%s (top %d of %d)' % (msg, num_top, len(times_by_value))
             echo(msg)
 
-            top_values = sorted(
-                value_percs.items(), key=lambda(v, p): p, reverse=True)
+            top_times_by_value = sorted(
+                times_by_value.iteritems(),
+                key=lambda (v, t): len(t),
+                reverse=True)
 
             if num_top:
-                top_values = top_values[:num_top]
+                top_times_by_value = top_times_by_value[:num_top]
 
-            for value, perc in top_values:
-                perc_str = '%.2f%%' % perc
-                if perc >= 80:
-                    styled_perc = style(perc_str, fg='red', bold=True)
-                elif perc >= 30:
-                    styled_perc = style(perc_str, fg='yellow', bold=True)
-                elif perc >= 8:
-                    styled_perc = style(perc_str, bold=True)
-                else:
-                    styled_perc = perc_str
+            for value, times in top_times_by_value:
+                num_times = len(times)
 
-                perc_active_str = '%.2f%%' % (
-                    grouping_active_usage[grouping][value])
-
-                line = '  %s: %s %s' % (value, styled_perc, perc_active_str)
-
-                if self.is_filtered:
-                    line = '%s %.2f%%' % (
-                        line, grouping_filtered_usage[grouping][value])
-
-                echo(line)
+                echo('  %s %s %s - %s' % (
+                    style_perc(
+                        100.0 * num_times / len(self.filtered_sampling_times),
+                        color=False) if self.is_filtered else '',
+                    style_perc(
+                        100.0 * num_times / len(self.active_sampling_times),
+                        color=False),
+                    style_perc(100.0 * num_times / len(self.sampling_times)),
+                    value))
 
             echo()
+
+
+def style_perc(perc, color=True):
+    perc_str = '{:6.2f}%'.format(perc)
+
+    if not color or perc < 10:
+        return perc_str
+    elif perc < 50:
+        return style(perc_str, bold=True)
+    elif perc < 80:
+        return style(perc_str, fg='yellow', bold=True)
+    return style(perc_str, fg='red', bold=True)
