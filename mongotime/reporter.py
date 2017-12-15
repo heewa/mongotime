@@ -56,8 +56,8 @@ class Reporter(object):
             lambda op, g: eval(  # pylint: disable=eval-used
                 stmnt, {'o': op, 'g': g}))
 
-    def get_stats(self):
-        stats = {
+    def get_summary(self):
+        summary = {
             'num_samples': len(self._sampling_times),
             'num_ops': self._num_ops,
             'earliest': min(self._sampling_times),
@@ -65,10 +65,13 @@ class Reporter(object):
         }
 
         if self._sampling_times:
-            span = stats['latest'] - stats['earliest']
-            stats['samples_per_sec'] = stats['num_samples'] / span
+            span = summary['latest'] - summary['earliest']
+            summary['samples_per_sec'] = summary['num_samples'] / span
+            summary['perc_active'] = (
+                100.0 * len(self._active_sampling_times) /
+                len(self._sampling_times))
 
-        return stats
+        return summary
 
     def add_sample(self, sample_t, ops):
         self._sampling_times.add(sample_t)

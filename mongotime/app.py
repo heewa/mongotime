@@ -137,8 +137,8 @@ def analyze(recording_file, focus=None, num_top=None, new_groupings=None):
     for sample in decode_file_iter(recording_file):
         reporter.add_sample(sample['t'], sample['o'])
 
-    echo('== Stats ==')
-    for stat, val in sorted(reporter.get_stats().items()):
+    echo('== Summary ==')
+    for stat, val in sorted(reporter.get_summary().items()):
         echo('  %s = %s' % (stat, val))
     echo()
 
