@@ -148,8 +148,8 @@ def analyze(
         reporter.add_sample(sample['t'], sample['o'])
 
     echo('== Summary ==')
-    for stat, val in sorted(reporter.get_summary().items()):
+    for stat, val in sorted(reporter.report.get_summary().items()):
         echo('  %s = %s' % (stat, val))
     echo()
 
-    reporter.print_top(focus=focus, num_top=num_top)
+    reporter.report.print_top(focus=focus, num_top=num_top)

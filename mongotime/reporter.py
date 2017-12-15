@@ -19,41 +19,10 @@ class Reporter(object):
         else:
             self._filter = None
 
-        self._builtin_groupings = {
-            # Passthrough
-            'ns': lambda op: op.get('ns'),
-            'client': lambda op: op.get('client'),
-            'op': lambda op: op.get('op'),
-
-            'query': lambda op: repr(extract_query(op)),
-            'query_keys': lambda op: repr(strip_query(extract_query(op))),
-
-            'db': lambda op: op.get('ns', '').split('.', 1)[0],
-            'collection': lambda op: op.get('ns', '.').split('.', 1)[1],
-
-            'client_host': lambda op: op.get('client', ':').split(':', 1)[0],
-
-            # The whole op, as a way of seeing a sampling of them
-            'raw': str,
-        }
-
         self._plugin_groupings = {}
         self._eval_groupings = {}
 
-        self._num_ops = 0
-
-        # Set of all times Mongo was sampled
-        self._sampling_times = set()
-
-        # Set of times Mongo was sampled with some ops
-        self._active_sampling_times = set()
-
-        # Set of times Mongo was sampled with filtered ops
-        self._filtered_sampling_times = set()
-
-        # Mapping of grouping name to mapping of grouping value to times seen:
-        #   {g: {v: {t1, t2, ...}}}
-        self._grouping_values = defaultdict(lambda: defaultdict(set))
+        self.report = Report(is_filtered=self._filter is not None)
 
     def add_grouping(self, grouping_class):
         # Store instance of grouping, not the class
@@ -65,124 +34,28 @@ class Reporter(object):
             lambda op, g: eval(  # pylint: disable=eval-used
                 stmnt, {'o': op, 'g': g}))
 
-    def get_summary(self):
-        summary = {
-            'num_samples': len(self._sampling_times),
-            'num_ops': self._num_ops,
-            'earliest': min(self._sampling_times),
-            'latest': max(self._sampling_times),
-        }
-
-        if self._sampling_times:
-            span = summary['latest'] - summary['earliest']
-            summary['samples_per_sec'] = summary['num_samples'] / span
-            summary['perc_active'] = (
-                100.0 * len(self._active_sampling_times) /
-                len(self._sampling_times))
-
-        if self._filter:
-            summary['perc_active_filtered'] = (
-                100.0 * len(self._filtered_sampling_times) /
-                len(self._sampling_times))
-
-        return summary
-
     def add_sample(self, sample_t, ops):
-        self._sampling_times.add(sample_t)
+        self.report.sampling_times.add(sample_t)
 
         if not ops:
             return
 
-        self._num_ops += len(ops)
-        self._active_sampling_times.add(sample_t)
+        self.report.num_ops += len(ops)
+        self.report.active_sampling_times.add(sample_t)
 
         for op in ops:
             groupings = self._extract_groupings(op)
             if not self._filter or self._filter(groupings):
-                self._filtered_sampling_times.add(sample_t)
+                self.report.filtered_sampling_times.add(sample_t)
 
                 for name, value in groupings.iteritems():
-                    self._grouping_values[name][str(value)].add(sample_t)
-
-    def print_top(self, focus=None, num_top=None):
-        grouping_values = self._grouping_values
-        if focus:
-            grouping_values = {
-                name: value_series
-                for name, value_series in grouping_values.iteritems()
-                if name in focus
-            }
-        elif num_top is None:
-            # If not explicitly told to show all, default to 5
-            num_top = 5
-
-        # turn into % time spent in general by comparing # of times seen with
-        # # of times sampled
-        grouping_times = {
-            grouping: {
-                value: 100.0 * len(times) / len(self._sampling_times)
-                for value, times in value_series.items()
-            }
-            for grouping, value_series in grouping_values.items()
-        }
-
-        # turn into % of active-time spent on each thing
-        grouping_active_usage = {
-            grouping: {
-                value: 100.0 * len(times) / len(self._active_sampling_times)
-                for value, times in value_series.items()
-            } for grouping, value_series in grouping_values.items()
-        }
-
-        # get % of filtered-active time for each thing
-        grouping_filtered_usage = {
-            grouping: {
-                value: 100.0 * len(times) / len(self._filtered_sampling_times)
-                for value, times in value_series.items()
-            } for grouping, value_series in grouping_values.items()
-        }
-
-        for grouping, value_percs in sorted(grouping_times.items()):
-            msg = '%s:' % style(grouping, fg='blue')
-            if num_top and len(value_percs) > num_top:
-                msg = '%s (top %d of %d)' % (msg, num_top, len(value_percs))
-            echo(msg)
-
-            top_values = sorted(
-                value_percs.items(), key=lambda(v, p): p, reverse=True)
-
-            if num_top:
-                top_values = top_values[:num_top]
-
-            for value, perc in top_values:
-                perc_str = '%.2f%%' % perc
-                if perc >= 80:
-                    styled_perc = style(perc_str, fg='red', bold=True)
-                elif perc >= 30:
-                    styled_perc = style(perc_str, fg='yellow', bold=True)
-                elif perc >= 8:
-                    styled_perc = style(perc_str, bold=True)
-                else:
-                    styled_perc = perc_str
-
-                perc_active_str = '%.2f%%' % (
-                    grouping_active_usage[grouping][value])
-
-                line = '  %s: %s %s' % (value, styled_perc, perc_active_str)
-
-                if self._filter:
-                    line = '%s %.2f%%' % (
-                        line, grouping_filtered_usage[grouping][value])
-
-                echo(line)
-
-            echo()
+                    self.report.grouping_values[name][str(value)].add(sample_t)
 
     def _extract_groupings(self, op):
         # Get builtin groupings first, then pass those to the user ones
         groupings = {
             name: extractor(op)
-            for name, extractor in self._builtin_groupings.items()
+            for name, extractor in BUILTIN_GROUPINGS.items()
         }
 
         user_groupings = {}
@@ -200,6 +73,25 @@ class Reporter(object):
         groupings.update(user_groupings)
 
         return groupings
+
+
+BUILTIN_GROUPINGS = {
+    # Passthrough
+    'ns': lambda op: op.get('ns'),
+    'client': lambda op: op.get('client'),
+    'op': lambda op: op.get('op'),
+
+    'query': lambda op: repr(extract_query(op)),
+    'query_keys': lambda op: repr(strip_query(extract_query(op))),
+
+    'db': lambda op: op.get('ns', '').split('.', 1)[0],
+    'collection': lambda op: op.get('ns', '.').split('.', 1)[1],
+
+    'client_host': lambda op: op.get('client', ':').split(':', 1)[0],
+
+    # The whole op, as a way of seeing a sampling of them
+    'raw': str,
+}
 
 
 def extract_query(op):
@@ -244,3 +136,119 @@ def get_grouping_value(fn, op, groupings):
         # Catching all exceptions here in order to continue with report
         # while showing user the error (and how much it happened)
         return '%s - %s' % (style(type(err).__name__, fg='red'), err)
+
+
+class Report(object):
+    def __init__(self, is_filtered):
+        self.is_filtered = is_filtered
+
+        self.num_ops = 0
+
+        # Set of all times Mongo was sampled
+        self.sampling_times = set()
+
+        # Set of times Mongo was sampled with some ops
+        self.active_sampling_times = set()
+
+        # Set of times Mongo was sampled with filtered ops
+        self.filtered_sampling_times = set()
+
+        # Mapping of grouping name to mapping of grouping value to times seen:
+        #   {g: {v: {t1, t2, ...}}}
+        self.grouping_values = defaultdict(lambda: defaultdict(set))
+
+    def get_summary(self):
+        summary = {
+            'num_samples': len(self.sampling_times),
+            'num_ops': self.num_ops,
+            'earliest': min(self.sampling_times),
+            'latest': max(self.sampling_times),
+        }
+
+        if self.sampling_times:
+            span = summary['latest'] - summary['earliest']
+            summary['samples_per_sec'] = summary['num_samples'] / span
+            summary['perc_active'] = (
+                100.0 * len(self.active_sampling_times) /
+                len(self.sampling_times))
+
+        if self.is_filtered:
+            summary['perc_active_filtered'] = (
+                100.0 * len(self.filtered_sampling_times) /
+                len(self.sampling_times))
+
+        return summary
+
+    def print_top(self, focus=None, num_top=None):
+        grouping_values = self.grouping_values
+        if focus:
+            grouping_values = {
+                name: value_series
+                for name, value_series in grouping_values.iteritems()
+                if name in focus
+            }
+        elif num_top is None:
+            # If not explicitly told to show all, default to 5
+            num_top = 5
+
+        # turn into % time spent in general by comparing # of times seen with
+        # # of times sampled
+        grouping_times = {
+            grouping: {
+                value: 100.0 * len(times) / len(self.sampling_times)
+                for value, times in value_series.items()
+            }
+            for grouping, value_series in grouping_values.items()
+        }
+
+        # turn into % of active-time spent on each thing
+        grouping_active_usage = {
+            grouping: {
+                value: 100.0 * len(times) / len(self.active_sampling_times)
+                for value, times in value_series.items()
+            } for grouping, value_series in grouping_values.items()
+        }
+
+        # get % of filtered-active time for each thing
+        grouping_filtered_usage = {
+            grouping: {
+                value: 100.0 * len(times) / len(self.filtered_sampling_times)
+                for value, times in value_series.items()
+            } for grouping, value_series in grouping_values.items()
+        }
+
+        for grouping, value_percs in sorted(grouping_times.items()):
+            msg = '%s:' % style(grouping, fg='blue')
+            if num_top and len(value_percs) > num_top:
+                msg = '%s (top %d of %d)' % (msg, num_top, len(value_percs))
+            echo(msg)
+
+            top_values = sorted(
+                value_percs.items(), key=lambda(v, p): p, reverse=True)
+
+            if num_top:
+                top_values = top_values[:num_top]
+
+            for value, perc in top_values:
+                perc_str = '%.2f%%' % perc
+                if perc >= 80:
+                    styled_perc = style(perc_str, fg='red', bold=True)
+                elif perc >= 30:
+                    styled_perc = style(perc_str, fg='yellow', bold=True)
+                elif perc >= 8:
+                    styled_perc = style(perc_str, bold=True)
+                else:
+                    styled_perc = perc_str
+
+                perc_active_str = '%.2f%%' % (
+                    grouping_active_usage[grouping][value])
+
+                line = '  %s: %s %s' % (value, styled_perc, perc_active_str)
+
+                if self.is_filtered:
+                    line = '%s %.2f%%' % (
+                        line, grouping_filtered_usage[grouping][value])
+
+                echo(line)
+
+            echo()
