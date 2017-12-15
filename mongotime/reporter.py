@@ -7,8 +7,7 @@ class Reporter(object):
     """Analyses samples and builds reports.
     """
 
-    def __init__(self, samples, query=None):
-        self._samples = samples
+    def __init__(self, query=None):
         self._query = query
 
         self._builtin_groupings = {
@@ -32,6 +31,21 @@ class Reporter(object):
         self._plugin_groupings = {}
         self._eval_groupings = {}
 
+        self._num_ops = 0
+
+        # Set of all times Mongo was sampled
+        self._sampling_times = set()
+
+        # Set of times Mongo was sampled with some ops
+        self._active_sampling_times = set()
+
+        # Set of times Mongo was sampled with filtered ops
+        self._filtered_sampling_times = set()
+
+        # Mapping of grouping name to mapping of grouping value to times seen:
+        #   {g: {v: {t1, t2, ...}}}
+        self._grouping_values = defaultdict(lambda: defaultdict(set))
+
     def add_grouping(self, grouping_class):
         # Store instance of grouping, not the class
         grouping = grouping_class()
@@ -43,98 +57,63 @@ class Reporter(object):
                 stmnt, {'o': op, 'g': g}))
 
     def get_stats(self):
-        if not self._samples:
-            return {'num_samples': 0, 'num_ops': 0}
-
         stats = {
-            'num_samples': len(self._samples),
-            'num_ops': sum(len(s['o']) for s in self._samples),
-            'earliest': self._samples[0]['t'],
-            'latest': self._samples[-1]['t'],
+            'num_samples': len(self._sampling_times),
+            'num_ops': self._num_ops,
+            'earliest': min(self._sampling_times),
+            'latest': max(self._sampling_times),
         }
 
-        span = stats['latest'] - stats['earliest']
-        stats['samples_per_sec'] = stats['num_samples'] / span
+        if self._sampling_times:
+            span = stats['latest'] - stats['earliest']
+            stats['samples_per_sec'] = stats['num_samples'] / span
 
         return stats
 
-    def get_groupings(self):
-        samples = self._samples
+    def add_sample(self, sample_t, ops):
+        self._sampling_times.add(sample_t)
 
-        # Extract groupings for each op
-        #   [{t: t1, g: [{g1: [v1]}]}]
-        grouping_samples = [
-            {
-                't': sample['t'],
-                'g': [
-                    self._extract_groupings(op)
-                    for op in sample['o']
-                ],
+        if not ops:
+            return
+
+        self._num_ops += len(ops)
+        self._active_sampling_times.add(sample_t)
+
+        for op in ops:
+            groupings = self._extract_groupings(op)
+            self._filtered_sampling_times.add(sample_t)
+
+            for name, value in groupings.iteritems():
+                self._grouping_values[name][str(value)].add(sample_t)
+
+    def print_top(self, focus=None, num_top=None):
+        grouping_values = self._grouping_values
+        if focus:
+            grouping_values = {
+                name: value_series
+                for name, value_series in grouping_values.iteritems()
+                if name in focus
             }
-            for sample in samples
-        ]
+        elif num_top is None:
+            # If not explicitly told to show all, default to 5
+            num_top = 5
 
-        # Filter by query
-        if self._query:
-            try:
-                grouping_samples = [
-                    {
-                        't': s['t'],
-                        'g': [
-                            op_groupings
-                            for op_groupings in s['g']
-                            if matches_query(op_groupings, self._query)
-                        ],
-                    }
-                    for s in grouping_samples
-                ]
-            except QueryError:
-                return
-
-        # Deduplicate groupings in each sample, cuz multiple extractions could
-        # have yielded the same grouping, but that doesn't mean that grouping
-        # "happened" multiple times at a single point of time
-        flat_samples = [
-            {
-                't': sample['t'],
-                'g': dict(reduce(
-                    lambda a, b: a | set(b.items()),
-                    sample['g'],
-                    set())),
-            }
-            for sample in grouping_samples
-        ]
-
-        # Pivot timeseries of collection of groupings to a timeseries per
-        # grouping. Ie [{t: t1, g: [g1, g4]}, ...] --> {g1: [t1, t3, ...], ...}
-        index_by_ts = {s['t']: i for i, s in enumerate(samples)}
-        grouping_series = defaultdict(
-            lambda: defaultdict(lambda: [0]*len(samples)))
-        for sample in flat_samples:
-            for grouping, value in sample['g'].items():
-                index = index_by_ts[sample['t']]
-                grouping_series[grouping][value][index] = 1
-
-        return grouping_series
-
-    def print_top(self, grouping_series, num_top=None):
-        # turn into % time spent in general
+        # turn into % time spent in general by comparing # of times seen with
+        # # of times sampled
         grouping_times = {
             grouping: {
-                value: 100.0 * sum(series) / len(series)
-                for value, series in value_series.items()
+                value: 100.0 * len(times) / len(self._sampling_times)
+                for value, times in value_series.items()
             }
-            for grouping, value_series in grouping_series.items()
+            for grouping, value_series in grouping_values.items()
         }
 
         # turn into % of active-time spent on each thing
-        num_active_times = len(set(s['t'] for s in self._samples if s['o']))
         grouping_active_usage = {
             grouping: {
-                value: 100.0 * sum(series) / num_active_times
-                for value, series in value_series.items()
-            }
-            for grouping, value_series in grouping_series.items()
+                value: 100.0 * len(times) / len(self._active_sampling_times)
+                for value, times in value_series.items()
+            } for grouping, value_series in grouping_values.items()
         }
 
         for grouping, value_percs in sorted(grouping_times.items()):
@@ -242,10 +221,7 @@ def matches_query(op_groupings, query):
 
 def get_grouping_value(fn, op, groupings):
     try:
-        value = fn(op, groupings)
-        if not isinstance(value, (str, unicode)):
-            value = str(value)
-        return value
+        return fn(op, groupings)
     except Exception as err:  # pylint: disable=broad-except
         # Catching all exceptions here in order to continue with report
         # while showing user the error (and how much it happened)

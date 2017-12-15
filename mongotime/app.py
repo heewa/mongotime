@@ -122,7 +122,8 @@ def record(recording_file, host, interval, duration):
     help='Create a grouping from a name and a python statement which when '
          'eval\'d results in the grouping value')
 def analyze(recording_file, focus=None, num_top=None, new_groupings=None):
-    reporter = Reporter(list(decode_file_iter(recording_file)))
+    # Set up reporter
+    reporter = Reporter()
 
     if new_groupings:
         for new_grouping in new_groupings:
@@ -132,18 +133,13 @@ def analyze(recording_file, focus=None, num_top=None, new_groupings=None):
     for grouping_class in plugins['groupings']:
         reporter.add_grouping(grouping_class)
 
+    # Stream samples to reporter
+    for sample in decode_file_iter(recording_file):
+        reporter.add_sample(sample['t'], sample['o'])
+
     echo('== Stats ==')
     for stat, val in sorted(reporter.get_stats().items()):
         echo('  %s = %s' % (stat, val))
     echo()
 
-    groupings = dict(reporter.get_groupings())
-
-    # Optionally focus on one grouping
-    if focus:
-        groupings = {focus: groupings[focus]}
-    elif num_top is None:
-        # If not explicitly told to show all, default to 5
-        num_top = 5
-
-    reporter.print_top(groupings, num_top=num_top)
+    reporter.print_top(focus=focus, num_top=num_top)
