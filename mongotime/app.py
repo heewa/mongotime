@@ -7,6 +7,7 @@ import click
 from click import echo, style
 
 from pymongo import MongoClient
+from pymongo.errors import ServerSelectionTimeoutError
 from bson import decode_file_iter
 
 from .sampler import Sampler
@@ -29,14 +30,28 @@ def cli(ctx):
 
 
 @cli.command()
-@click.option('--host', default='localhost:27017', help='Location of Mongo host')
+@click.option(
+    '--host', default='localhost:27017', help='Location of Mongo host')
 @click.option('--interval', '-i', default=100, help='Sampling interval in ms')
 @click.option('--duration', '-d', default=0, help='Duration in sec to record')
 @click.argument(
     'recording_file', default='recording.mtime', type=click.File('wb'))
 @click.pass_context
 def record(ctx, recording_file, host, interval, duration):
-    echo('Connecting to Mongo at %s' % host)
+    # Having a client doesn't mean we succesfully connected, so ask something
+    # that'll force it. Also reduce the timeout from the default 30s, to
+    # fail fast when trying to connect to the wrong URI.
+    client = MongoClient(
+        host,
+        connectTimeoutMS=5000,
+        serverSelectionTimeoutMS=5000)
+    try:
+        client.is_primary
+    except ServerSelectionTimeoutError:
+        exit('Failed to connect to Mongo at %s' % host)
+
+    # If that didn't throw an exception, it must have connected, so recreate
+    # the client with default timeouts
     client = MongoClient(host)
 
     sample_queue = Queue(maxsize=100)
@@ -57,6 +72,8 @@ def record(ctx, recording_file, host, interval, duration):
     end = duration and start + duration
 
     try:
+        echo('Sampling Mongo...', err=errout)
+
         left = end - time()
         while not duration or left > 0:
             sleep(duration and min(left, 3) or 3)
