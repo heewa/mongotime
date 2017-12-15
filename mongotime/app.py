@@ -24,8 +24,7 @@ def run():
 
 
 @click.group()
-@click.pass_context
-def cli(ctx):
+def cli():
     pass
 
 
@@ -36,8 +35,7 @@ def cli(ctx):
 @click.option('--duration', '-d', default=0, help='Duration in sec to record')
 @click.argument(
     'recording_file', default='recording.mtime', type=click.File('wb'))
-@click.pass_context
-def record(ctx, recording_file, host, interval, duration):
+def record(recording_file, host, interval, duration):
     # Having a client doesn't mean we succesfully connected, so ask something
     # that'll force it. Also reduce the timeout from the default 30s, to
     # fail fast when trying to connect to the wrong URI.
