@@ -6,7 +6,7 @@ here = path.abspath(path.dirname(__file__))
 # Exec mongotime/version.py to load __version__ into global namespace. For
 # reasons and alt, see:
 # https://packaging.python.org/guides/single-sourcing-package-version/
-execfile(path.join(here, 'mongotime', 'version.py'))
+exec(open(path.join(here, 'mongotime', 'version.py')).read())
 
 setup(
     name='mongotime',
