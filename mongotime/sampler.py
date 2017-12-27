@@ -4,10 +4,10 @@ from Queue import Full
 from .thread_with_stop import ThreadWithStop
 
 
-def take_sample(db, client_id):
+def take_sample(db, client_id, include_all=False):
     # Note: get the timestamp _after_ the cmd returns from Mongo, which
     # is probably closed to the time of the sample.
-    result = db.admin.current_op()
+    result = db.admin.current_op(include_all=include_all)
     timestamp = time()
 
     # Filter for keys we're interested in, and remove empty ones. Also

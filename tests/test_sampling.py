@@ -32,7 +32,7 @@ class TestSampling(TestCase):
     def test_ops(self):
         # taking a sample with given client_id will include our own op, so
         # it's a way of guaranteeing an op to check
-        op = take_sample(self.db, None)['o'][0]
+        op = take_sample(self.db, None, include_all=True)['o'][0]
 
         assert op
         assert type(op) == dict

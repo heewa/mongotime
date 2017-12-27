@@ -29,7 +29,7 @@ class MockDB(object):
             raise NotImplementedError
         return {'you': self.client_id}
 
-    def current_op(self):
+    def current_op(self, *args, **kwargs):  # pylint: disable=unused-argument
         if not self.samples:
             sample = []
         else:
