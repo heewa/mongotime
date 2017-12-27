@@ -27,23 +27,29 @@ class Sampler(ThreadWithStop):
     """Samples the DB for Ops at a regular interval
     """
 
-    def __init__(self, db, sample_queue, interval_sec=0.100):
+    def __init__(self, db, sample_queue, interval_sec=0.100, max_samples=None):
         super(Sampler, self).__init__(name='Sampler')
 
         self._db = db
         self._sample_queue = sample_queue
         self._interval_sec = interval_sec
+        self._max_samples = max_samples
 
         # Some stats
         self.num_samples = 0
         self.num_ops = 0
         self.num_dropped = 0
 
+    def _done(self):
+        return (
+            (self._max_samples and self.num_samples >= self._max_samples) or
+            self._stop.is_set())
+
     def _run(self):
         # Get our client ID so we can exclude our own sampling Ops
         client_id = self._db.admin.command('whatsmyuri')['you']
 
-        while not self._stop.is_set():
+        while not self._done():
             tick_start = time()
 
             sample = take_sample(self._db, client_id)
