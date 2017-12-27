@@ -47,5 +47,6 @@ setup(
     ],
     tests_require=[
         'pytest',
+        'tox',
     ],
     long_description='TODO')
