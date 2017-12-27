@@ -42,8 +42,8 @@ class Sampler(ThreadWithStop):
 
     def _done(self):
         return (
-            (self._max_samples and self.num_samples >= self._max_samples) or
-            self._stop.is_set())
+            self.num_samples >= self._max_samples if self._max_samples
+            else self._stop.is_set())
 
     def _run(self):
         # Get our client ID so we can exclude our own sampling Ops
