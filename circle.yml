@@ -4,5 +4,5 @@ dependencies:
 
 test:
   pre:
-    - flake8 mongotime/
-    - pylint --disable=locally-disabled,fixme mongotime/
+    - flake8 mongotime/ tests/
+    - pylint --disable=locally-disabled,fixme mongotime/ tests/

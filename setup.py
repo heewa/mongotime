@@ -45,4 +45,7 @@ setup(
         'click>=6.7,<7',
         'pymongo>=3.6.0,<4',
     ],
+    tests_require=[
+        'pytest',
+    ],
     long_description='TODO')
