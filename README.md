@@ -1,6 +1,8 @@
 # Mongotime
 
-[![CircleCI](https://circleci.com/gh/heewa/mongotime.svg?style=svg)](https://circleci.com/gh/heewa/mongotime)
+[![license](https://img.shields.io/github/license/heewa/mongotime.svg)]()
+[![CircleCI](https://img.shields.io/circleci/project/github/heewa/mongotime.svg)]()
+[![PyPI](https://img.shields.io/pypi/v/mongotime.svg)]()
 
 Mongotime is a [sampling-based](https://en.wikipedia.org/wiki/Profiling_(computer_programming)#Statistical_profilers) performance analysis tool for MongoDB that aims to give you a deep view into how Mongo is spending its time by showing % utilization of various activity types, and allowing you to add custom grouping and filtering.
 
