@@ -54,7 +54,7 @@ query_keys:
 
 ## Installing
 
-Currently it's not published to pypi, so you need to install from the repo: `pip install https://github.com/heewa/mongotime/archive/master.zip`, or you can clone the repo and install like `pip install -e .`. This isn't ideal, since you need to uninstall and reinstall to update, but it's temporary. You might want to create and install inside a [virtualenv](https://virtualenv.pypa.io) to make that easier.
+You can use `pip install mongotime`, or clone the repo and install it with `pip install -e .`.
 
 
 ## Using
