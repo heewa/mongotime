@@ -4,9 +4,11 @@
 [![CircleCI](https://img.shields.io/circleci/project/github/heewa/mongotime.svg)]()
 [![PyPI](https://img.shields.io/pypi/v/mongotime.svg)]()
 
-Mongotime is a [sampling-based](https://en.wikipedia.org/wiki/Profiling_(computer_programming)#Statistical_profilers) performance analysis tool for MongoDB that aims to give you a deep view into how Mongo is spending its time by showing % utilization of various activity types, and allowing you to add custom grouping and filtering.
+Mongotime is a [sampling-based](https://en.wikipedia.org/wiki/Profiling_(computer_programming)#Statistical_profilers) profiler for Mongo DB. In contrast to tools that focus on finding only slow queries and operations, this one shows you a different class of DB usage that can strain Mongo which other tools don't see.
 
-This approach is particularly useful if your DB is strained by a high volume of fast queries, rather than a few slow ones. Besides optimizing slow queries, you might want to understand and change general access patterns. For example, maybe your DB is spending way too much time looking up a user's last login time, even if each lookup is very fast because of indexing.
+By grouping operations together in various (and customizable) ways, and showing how much time Mongo is spending on them overall as a group, it allows you to see how even a large volume of very fast queries can be taking up Mongo's time and resources.
+
+For example, imagine a scenario where your DB gets 2 500ms queries per second of one type, and 5,000 10ms queries of another type (among other usage). Focusing on the slow ones will probably not improve the overall performance strain on Mongo - you might want to know about, and maybe address the 5k/sec of fast (probably already optimized) queries. Reducing or removing that load might have a greater overall impact on Mongo's performance across all queries.
 
 Ex:
 
