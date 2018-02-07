@@ -61,17 +61,42 @@ You can use `pip install mongotime`, or clone the repo and install it with `pip 
 
 ## Using
 
-Because mongotime needs to analyze data collected over a period of time, the usage is split into two phases: record & analyze.
+Because mongotime needs to analyze data collected over a period of time, the usage is split into two phases: record & analyze. Recordings are saved to a file, which is analyzed separately without connecting to Mongo, so you can move that file around and run various analyses somewhere else, or at a later time.
 
 ### Recording a Trace
 
-Use `mongotime record <optional_filename>` to capture a recording file. Run with `--help` to see options. By default the recording continues until you stop it with `<ctrl>+c`, but you can predefine a duration like `-d 30` (seconds).
+```
+$ mongotime record --help
+Usage: mongotime record [OPTIONS] [RECORDING_FILE]
 
-I recommend starting with a relatively short duration like 30 seconds, and increasing or decreasing if you want breadth or granularity.
+Options:
+  --host TEXT             Location of Mongo host
+  -i, --interval INTEGER  Sampling interval in ms
+  -d, --duration INTEGER  Duration in sec to record
+  --help                  Show this message and exit.
+```
+
+By default the recording continues until you stop it with `<ctrl>+c`, but you can predefine a duration like `-d 30` (seconds). I recommend starting with a relatively short duration like 30 seconds, and increasing or decreasing if you want breadth or granularity.
 
 ### Analyzing a Recording
 
-Use `mongotime analyze <optional_filename>` to analyze a recording file. At the top of the output you'll see a summary, mainly useful to give a sense of the scope of the recording. Below that you'll see sections of "aspects" of what Mongo is spending its time on, with line items of the top things in that category taking up Mongo's time.
+```
+$ mongotime analyze --help
+Usage: mongotime analyze [OPTIONS] [RECORDING_FILE]
+
+Options:
+  --focus ASPECT              View items in just this aspect (category of
+                              activity)
+  --top INTEGER               View top N values in aspects, or 0 for all
+  --aspect NAME PY_STATEMENT  Create an aspect from a name and a python
+                              statement which when eval'd results in the
+                              aspect value
+  --filter PY_STATEMENT       Filter ops by this python statement returning
+                              True
+  --help                      Show this message and exit.
+```
+
+At the top of the output you'll see a summary, mainly useful to give a sense of the scope of the recording. Below that you'll see sections of "aspects" of what Mongo is spending its time on, with line items of the top things in that category taking up Mongo's time.
 
 #### Aspects
 
