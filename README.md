@@ -4,11 +4,9 @@
 [![CircleCI](https://img.shields.io/circleci/project/github/heewa/mongotime.svg)]()
 [![PyPI](https://img.shields.io/pypi/v/mongotime.svg)]()
 
-Mongotime is a [sampling-based](https://en.wikipedia.org/wiki/Profiling_(computer_programming)#Statistical_profilers) profiler for Mongo DB. In contrast to tools that focus on finding only slow queries and operations, this one shows you a different class of DB usage that can strain Mongo which other tools don't see.
+Mongotime is a [sampling-based](https://en.wikipedia.org/wiki/Profiling_(computer_programming)#Statistical_profilers) profiler for Mongo DB. It identifies utilization patterns, including a high load of optimized queries - a class of usage that tools that focus exclusively on slow queries and operations often miss. By grouping operations Mongotime allows you to see how even very fast queries can be taking up a meaningful amount of Mongo's time and resources.
 
-By grouping operations together in various (and customizable) ways, and showing how much time Mongo is spending on them overall as a group, it allows you to see how even a large volume of very fast queries can be taking up Mongo's time and resources.
-
-For example, imagine a scenario where your DB gets 2 500ms queries per second of one type, and 5,000 10ms queries of another type (among other usage). Focusing on the slow ones will probably not improve the overall performance strain on Mongo - you might want to know about, and maybe address the 5k/sec of fast (probably already optimized) queries. Reducing or removing that load might have a greater overall impact on Mongo's performance across all queries.
+For example, imagine a scenario where your DB gets 2 500ms queries per second of one type and 5,000 10ms queries of another. Other tools highlight the slow queries, but any optimization will probably not improve the overall performance strain on Mongo; Mongotime, on the other hand, will help you identify, and maybe address, the 5k/sec of fast (probably already optimized) queries. Reducing or removing that load might have a greater overall impact on Mongo's performance.
 
 Ex:
 
